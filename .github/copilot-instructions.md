@@ -1,44 +1,106 @@
-# django-email-domain-checker
+# Copilot Instructions for django-email-domain-checker
 
-## Project conventions
+## Quick Start
 
-- **Package manager**: Use `uv` for all dependency management (venv creation, package install, etc.)
-- **Virtual environment**: `.venv/` in project root, created with `uv venv .venv`
-- **Install**: `uv pip install -e ".[dev]"`
-- **Python**: 3.10+
-- **Django**: 4.2+
-- **App name**: `email_domain_checker`
-
-## Running tests
+This is a reusable Django package for validating email addresses against a
+model-backed blocked-domain registry. Use `uv` for dependency management and
+`tox` as the canonical local validation entry point. This repository currently
+targets Python 3.13 only.
 
 ```bash
-source .venv/bin/activate
-tox run
+uv sync --extra dev
 ```
 
-Individual environments:
+`uv.lock` is committed. Update it when dependency metadata changes, and keep CI
+compatible with `uv sync --frozen --extra dev`.
 
+## Build, Test, and Lint Commands
+
+### Setup and Packaging
 ```bash
-tox run -e pytest   # tests
-tox run -e mypy     # type checking
-tox run -e ruff     # linting
+# Install the development toolchain
+uv sync --extra dev
+
+# Build wheel and sdist artifacts
+uv run python -m build
 ```
 
-## Project structure
+### Tox Entry Points
+```bash
+# Run the default locally available tox environments
+uv run tox
 
-- `email_domain_checker/` — reusable Django app
-  - `models.py` — `BlockedDomain` model (source of truth for domain validation)
-  - `validators.py` — `EmailDomainChecker` class and `validate_email_domain` callable
-  - `fields.py` — `CheckedEmailField` drop-in replacement for `models.EmailField`
-  - `admin.py` — Django admin registration for `BlockedDomain`
-  - `seed_domains.py` — reference domain list (~1240 domains) used by the seed migration
-  - `migrations/` — schema and data migrations (0002 seeds the reference domains)
-- `tests/` — test suite using pytest-django
+# Run one environment explicitly
+uv run tox -e py313
+uv run tox -e lint
+uv run tox -e mypy
+uv run tox -e security
 
-## Key design decisions
+# Run a single test file or test function through tox
+uv run tox -e py313 -- tests/test_models.py
+uv run tox -e py313 -- tests/test_validators.py::test_checked_email_field_rejects_blocked_domain
+```
 
-- Domains are stored in a database model (`BlockedDomain`), not hard-coded in Python
-- The seed domain list is loaded via a data migration (`0002_seed_domains`) that runs during `migrate`
-- The `is_exempt` flag allows overriding seeded entries without deleting them
-- The validator does a simple exact-match DB lookup (no regex chunking)
-- No external API dependencies in v1 (Block-Disposable-Email API is out of scope)
+### Direct Commands
+```bash
+# Run the full pytest suite
+uv run pytest
+
+# Run Ruff linting
+uv run ruff check email_domain_checker tests
+
+# Run mypy with the repository config
+uv run mypy email_domain_checker tests
+
+# Run security tooling directly
+uv run bandit -q -r email_domain_checker -x email_domain_checker/migrations
+uv run pip-audit
+```
+
+`tox` is the canonical entry point for local and CI checks. The configured
+environments are `py313`, `lint`, `mypy`, and `security`, with optional `ruff`,
+`bandit`, and `pip-audit` aliases for focused runs.
+
+## High-Level Architecture
+
+### Core Components
+
+**Model and admin** (`email_domain_checker/models.py`, `email_domain_checker/admin.py`)
+- `BlockedDomain` is the source of truth for whether a domain is blocked or
+  explicitly exempted
+- Django admin exposes the registry for operator-managed updates
+
+**Validation surface** (`email_domain_checker/validators.py`, `email_domain_checker/fields.py`)
+- `EmailDomainChecker` and `validate_email_domain` perform exact-match domain
+  checks against the model-backed registry
+- `CheckedEmailField` is the drop-in model field for host projects
+
+**Seed data and migrations** (`email_domain_checker/seed_domains.py`, `email_domain_checker/migrations/`)
+- The seeded disposable-domain reference list ships with the package
+- The data migration loads that list during `migrate`
+
+## Key Conventions
+
+### Code Style
+- Use `from __future__ import annotations` when forward references are needed
+- Ruff is the linting tool; line length is 120 characters
+- Keep migration-generated noise out of security and type-check commands
+
+### Validation Behavior
+- Domains live in the database, not hard-coded Python structures
+- `is_exempt` overrides a seeded blocked domain without deleting the row
+- Validation is intentionally a simple exact-match lookup; do not add regex or
+  third-party API coupling unless the package requirements change
+
+### Versioning and Release Flow
+- `pyproject.toml` is the single source of truth for the package version
+- Normal feature work should not bump the version manually
+- Releases go through `.github/workflows/release.yml`, which creates a release
+  bump PR, then creates the tag and GitHub Release after merge
+- The release flow is GitHub-only for now; do not add PyPI publishing steps
+
+## Important Notes
+
+- Tests use `tests.settings`
+- `uv.lock` should stay in sync with dependency metadata changes
+- Keep workflow path filters aligned with this repo's package path

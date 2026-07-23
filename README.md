@@ -133,10 +133,12 @@ BlockedDomain.objects.bulk_create(
 ```bash
 git clone <repo-url>
 cd django-email-domain-checker
-uv venv .venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-pytest
+uv sync --extra dev
+uv run tox
+uv run tox -e py313 -- tests/test_models.py
+uv run tox -e lint
+uv run tox -e mypy
+uv run tox -e security
 ```
 
 ## License

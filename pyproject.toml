@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Django package to validate email addresses against a model-backed registry of blocked domains."
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 authors = [
     { name = "Bjorn" },
 ]
@@ -18,11 +18,9 @@ classifiers = [
     "Framework :: Django :: 4.2",
     "Framework :: Django :: 5.0",
     "Framework :: Django :: 5.1",
+    "Framework :: Django :: 6.0",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
@@ -31,12 +29,15 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "pytest-django",
-    "mypy",
+    "bandit>=1.8",
+    "build>=1.2",
     "django-stubs",
-    "ruff",
-    "tox",
+    "mypy>=1.11",
+    "pip-audit>=2.9",
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+    "ruff>=0.6",
+    "tox>=4.28",
     "tox-uv",
 ]
 
@@ -46,10 +47,14 @@ include = ["email_domain_checker*"]
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
 pythonpath = ["."]
+testpaths = ["tests"]
 
 [tool.mypy]
 plugins = ["mypy_django_plugin.main"]
 python_version = "3.13"
+exclude = ["^email_domain_checker/migrations/"]
+show_error_codes = true
+warn_unused_ignores = true
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
@@ -58,7 +63,7 @@ ignore_missing_imports = true
 django_settings_module = "tests.settings"
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py313"
 line-length = 120
 
 [tool.ruff.lint]
@@ -66,4 +71,3 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "*/migrations/*.py" = ["E501"]
-
