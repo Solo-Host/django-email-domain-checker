@@ -93,10 +93,12 @@ environments are `py313`, `lint`, `mypy`, and `security`, with optional `ruff`,
   third-party API coupling unless the package requirements change
 
 ### Versioning and Release Flow
-- `pyproject.toml` is the single source of truth for the package version
+- `pyproject.toml` and `email_domain_checker/__init__.py` must stay in sync for the package version
+- Keep the editable package metadata in `uv.lock` aligned when a release bump changes that version
 - Normal feature work should not bump the version manually
-- Releases go through `.github/workflows/release.yml`, which creates a release
-  bump PR, then creates the tag and GitHub Release after merge
+- Releases go through `.github/workflows/release.yml`, which updates both
+  version files plus the committed `uv.lock` metadata in its release bump PR,
+  then creates the tag and GitHub Release after merge
 - The release flow is GitHub-only for now; do not add PyPI publishing steps
 
 ## Important Notes
