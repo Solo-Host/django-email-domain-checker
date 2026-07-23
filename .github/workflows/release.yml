@@ -230,6 +230,9 @@ jobs:
           - release.yml will create or reuse tag \`v${VERSION}\`
           - release.yml will build the sdist and wheel artifacts
           - release.yml will create or update the GitHub Release
+
+          ### If auto-merge is unavailable
+          - Merge this PR manually after the required checks pass.
           EOF
           )
 
@@ -242,7 +245,7 @@ jobs:
 
           echo "number=${PR_URL##*/}" >> "$GITHUB_OUTPUT"
 
-      - name: Enable auto-merge for release PR
+      - name: Enable auto-merge for release PR if supported
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.state.outputs.existing_pr_number || steps.pr.outputs.number }}
@@ -266,6 +269,11 @@ jobs:
               exit 0
             fi
 
+            if printf '%s' "${OUTPUT}" | grep -qiE 'Auto merge is not allowed for this repository|enablePullRequestAutoMerge'; then
+              echo "::warning::Release PR #${PR_NUMBER} was created successfully, but repository auto-merge is disabled. Merge the PR manually after the required checks pass."
+              exit 0
+            fi
+
             if printf '%s' "${OUTPUT}" | grep -q 'Pull request is in clean status' && [ "${attempt}" -lt "${ATTEMPTS}" ]; then
               echo "Attempt ${attempt}/${ATTEMPTS}: release PR #${PR_NUMBER} is still reporting clean status before checks register; retrying in ${SLEEP_SECONDS}s..."
               sleep "${SLEEP_SECONDS}"
@@ -273,7 +281,7 @@ jobs:
             fi
 
             if printf '%s' "${OUTPUT}" | grep -q 'Pull request is in clean status'; then
-              echo "::warning::Release PR #${PR_NUMBER} was created successfully, but auto-merge could not be enabled before checks registered"
+              echo "::warning::Release PR #${PR_NUMBER} was created successfully, but auto-merge could not be enabled before checks registered. Merge the PR manually after the required checks pass."
               exit 0
             fi
 
