@@ -226,13 +226,12 @@ jobs:
 
           This PR was created by the release workflow.
 
-          ### On merge
+          ### Workflow behavior
+          - release.yml will enable squash auto-merge for this PR
+          - GitHub will delete the release bump branch after merge
           - release.yml will create or reuse tag \`v${VERSION}\`
           - release.yml will build the sdist and wheel artifacts
           - release.yml will create or update the GitHub Release
-
-          ### If auto-merge is unavailable
-          - Merge this PR manually after the required checks pass.
           EOF
           )
 
@@ -245,7 +244,7 @@ jobs:
 
           echo "number=${PR_URL##*/}" >> "$GITHUB_OUTPUT"
 
-      - name: Enable auto-merge for release PR if supported
+      - name: Enable auto-merge and branch deletion for release PR
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.state.outputs.existing_pr_number || steps.pr.outputs.number }}
@@ -260,12 +259,13 @@ jobs:
             OUTPUT="$(gh pr merge "${PR_NUMBER}" \
               --repo "${{ github.repository }}" \
               --squash \
-              --auto 2>&1)"
+              --auto \
+              --delete-branch 2>&1)"
             STATUS=$?
             set -e
 
             if [ "${STATUS}" -eq 0 ]; then
-              echo "::notice::Enabled auto-merge for release PR #${PR_NUMBER}"
+              echo "::notice::Enabled auto-merge with branch deletion for release PR #${PR_NUMBER}"
               exit 0
             fi
 
@@ -298,7 +298,6 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
-      branch: ${{ steps.version.outputs.branch }}
     steps:
       - name: Extract version from branch name
         id: version
@@ -316,7 +315,6 @@ jobs:
           {
             echo "version=${VERSION}"
             echo "tag=v${VERSION}"
-            echo "branch=${BRANCH}"
           } >> "$GITHUB_OUTPUT"
 
   publish-release:
@@ -431,32 +429,4 @@ jobs:
               --repo "${{ github.repository }}" \
               --title "${TAG}" \
               --generate-notes
-          fi
-
-  cleanup-release-branch:
-    needs:
-      - release-metadata
-      - publish-release
-    runs-on: ubuntu-latest
-    if: >
-      always() &&
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'release-bump/v') &&
-      needs.release-metadata.result == 'success' &&
-      needs.publish-release.result == 'success'
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Clean up release bump branch
-        env:
-          BRANCH: ${{ needs.release-metadata.outputs.branch }}
-        run: |
-          set -euo pipefail
-
-          if git ls-remote --exit-code origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
-            git push origin --delete "${BRANCH}"
           fi
